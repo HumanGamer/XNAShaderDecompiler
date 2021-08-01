@@ -86,55 +86,56 @@ namespace XNAShaderDecompiler
         {
             byte[] effectCode = _effect.EffectCode;
 
-            using MemoryStream stream = new MemoryStream(effectCode);
-            using BinaryReader br = new BinaryReader(stream);
+            //using MemoryStream stream = new MemoryStream(effectCode);
+            //using BinaryReader br = new BinaryReader(stream);
 
-            long length = stream.Length;
+            BinReader br = new BinReader(effectCode);
 
-            uint header = br.ReadUInt32();
+            //long length = stream.Length;
+
+            var header = br.Read<uint>();
             if (header == 0xBCF00BCF)
             {
-                uint skip = br.ReadUInt32() - 8;
-                stream.Position += skip;
+                var skip = br.Read<uint>() - 8;
+                br.Skip(skip);
                 // length += skip; // ???
-                header = br.ReadUInt32();
+                header = br.Read<uint>();
             }
 
             if (header != 0xFEFF0901)
                 throw new ContentLoadException("Invalid Effect!");
 
-            uint offset = br.ReadUInt32();
-            _startPos = stream.Position;
-            if (offset > length)
-                throw new EndOfStreamException();
+            uint offset = br.Read<uint>();
+            //if (offset > length)
+            //    throw new EndOfStreamException();
 
-            stream.Position += offset;
+            var @base = br.Slice(offset);
             //length -= offset; // ???
 
             //if (length < 16)
             //    throw new EndOfStreamException();
 
-            uint numParams = br.ReadUInt32();
-            uint numTechniques = br.ReadUInt32();
-            uint unknown = br.ReadUInt32();
-            uint numObjects = br.ReadUInt32();
+            uint numParams = br.Read<uint>();
+            uint numTechniques = br.Read<uint>();
+            uint unknown = br.Read<uint>();
+            uint numObjects = br.Read<uint>();
 
             EffectObjects = new List<EffectObject>();
 
-            EffectParams = ReadParameters(numParams, br);
-            EffectTechniques = ReadTechniques(numTechniques, br);
+            EffectParams = ReadParameters(numParams, br, @base);
+            EffectTechniques = ReadTechniques(numTechniques, br, @base);
 
             //if (length < 8)
             //    throw new EndOfStreamException();
 
-            uint numSmallObjects = br.ReadUInt32();
-            uint numLargeObjects = br.ReadUInt32();
+            uint numSmallObjects = br.Read<uint>();
+            uint numLargeObjects = br.Read<uint>();
 
             ReadSmallObjects(numSmallObjects, br);
             ReadLargeObjects(numLargeObjects, br);
         }
 
-        private List<EffectParam> ReadParameters(uint numParams, BinaryReader br)
+        private List<EffectParam> ReadParameters(uint numParams, BinReader br, BinReader @base)
         {
             List<EffectParam> effectParams = new List<EffectParam>();
             if (numParams == 0)
@@ -144,13 +145,13 @@ namespace XNAShaderDecompiler
             {
                 EffectParam param = new EffectParam();
                 
-                uint typeOffset = br.ReadUInt32();
-                uint valOffset = br.ReadUInt32();
-                uint flags = br.ReadUInt32();
-                uint numAnnotations = br.ReadUInt32();
+                uint typeOffset = br.Read<uint>();
+                uint valOffset = br.Read<uint>();
+                uint flags = br.Read<uint>();
+                uint numAnnotations = br.Read<uint>();
 
-                param.Annotations = ReadAnnotations(numAnnotations, br);
-                param.Value = ReadValue(br, typeOffset, valOffset);
+                param.Annotations = ReadAnnotations(numAnnotations, br, @base);
+                param.Value = ReadValue(@base, typeOffset, valOffset);
 
                 effectParams.Add(param);
             }
@@ -158,7 +159,7 @@ namespace XNAShaderDecompiler
             return effectParams;
         }
 
-        private List<EffectAnnotation> ReadAnnotations(uint numAnnotations, BinaryReader br)
+        private List<EffectAnnotation> ReadAnnotations(uint numAnnotations, BinReader br, BinReader @base)
         {
             List<EffectAnnotation> annotations = new List<EffectAnnotation>();
             
@@ -169,16 +170,16 @@ namespace XNAShaderDecompiler
             {
                 EffectAnnotation annotation = new EffectAnnotation();
 
-                uint typeOffset = br.ReadUInt32();
-                uint valOffset = br.ReadUInt32();
+                uint typeOffset = br.Read<uint>();
+                uint valOffset = br.Read<uint>();
 
-                annotation.Value = ReadValue(br, typeOffset, valOffset);
+                annotation.Value = ReadValue(@base, typeOffset, valOffset);
             }
 
             return annotations;
         }
         
-        private List<EffectTechnique> ReadTechniques(uint numTechniques, BinaryReader br)
+        private List<EffectTechnique> ReadTechniques(uint numTechniques, BinReader br, BinReader @base)
         {
             List<EffectTechnique> effectTechniques = new List<EffectTechnique>();
             if (numTechniques == 0)
@@ -188,14 +189,14 @@ namespace XNAShaderDecompiler
             {
                 EffectTechnique technique = new EffectTechnique();
                 
-                uint nameOffset = br.ReadUInt32();
-                uint numAnnotations = br.ReadUInt32();
-                uint numPasses = br.ReadUInt32();
+                uint nameOffset = br.Read<uint>();
+                uint numAnnotations = br.Read<uint>();
+                uint numPasses = br.Read<uint>();
 
-                technique.Name = ReadString(br, nameOffset);
+                technique.Name = @base.ReadString(nameOffset);
 
-                technique.Annotations = ReadAnnotations(numAnnotations, br);
-                technique.Passes = ReadPasses(numPasses, br);
+                technique.Annotations = ReadAnnotations(numAnnotations, br, @base);
+                technique.Passes = ReadPasses(numPasses, br, @base);
                 
                 effectTechniques.Add(technique);
             }
@@ -203,7 +204,7 @@ namespace XNAShaderDecompiler
             return effectTechniques;
         }
 
-        private List<EffectPass> ReadPasses(uint numPasses, BinaryReader br)
+        private List<EffectPass> ReadPasses(uint numPasses, BinReader br, BinReader @base)
         {
             List<EffectPass> passes = new List<EffectPass>();
 
@@ -214,13 +215,13 @@ namespace XNAShaderDecompiler
             {
                 EffectPass pass = new EffectPass();
 
-                uint passNameOffset = br.ReadUInt32();
-                uint numAnnotations = br.ReadUInt32();
-                uint numStates = br.ReadUInt32();
+                uint passNameOffset = br.Read<uint>();
+                uint numAnnotations = br.Read<uint>();
+                uint numStates = br.Read<uint>();
 
-                pass.Name = ReadString(br, passNameOffset);
-                pass.Annotations = ReadAnnotations(numAnnotations, br);
-                pass.States = ReadStates(numStates, br);
+                pass.Name = @base.ReadString(passNameOffset);
+                pass.Annotations = ReadAnnotations(numAnnotations, br, @base);
+                pass.States = ReadStates(numStates, br, @base);
                 
                 passes.Add(pass);
             }
@@ -228,7 +229,7 @@ namespace XNAShaderDecompiler
             return passes;
         }
 
-        private List<EffectState> ReadStates(uint numStates, BinaryReader br)
+        private List<EffectState> ReadStates(uint numStates, BinReader br, BinReader @base)
         {
             List<EffectState> states = new List<EffectState>();
 
@@ -239,13 +240,13 @@ namespace XNAShaderDecompiler
             {
                 EffectState state = new EffectState();
 
-                uint type = br.ReadUInt32();
-                uint unknown = br.ReadUInt32();
-                uint typeOffset = br.ReadUInt32();
-                uint valOffset = br.ReadUInt32();
+                uint type = br.Read<uint>();
+                uint unknown = br.Read<uint>();
+                uint typeOffset = br.Read<uint>();
+                uint valOffset = br.Read<uint>();
 
                 state.Type = (RenderStateType) type;
-                state.Value = ReadValue(br, typeOffset, valOffset);
+                state.Value = ReadValue(@base, typeOffset, valOffset);
 
                 states.Add(state);
             }
@@ -253,7 +254,7 @@ namespace XNAShaderDecompiler
             return states;
         }
 
-        private EffectValue ReadValue(BinaryReader br, uint typeOffset, uint valOffset)
+        private EffectValue ReadValue(BinReader br, uint typeOffset, uint valOffset)
         {
             EffectValue value = new EffectValue();
 
@@ -277,23 +278,23 @@ namespace XNAShaderDecompiler
             return value;
         }
 
-        private string ReadString(BinaryReader br, uint offset)
-        {
-            long start = br.BaseStream.Position;
-            br.BaseStream.Position = _startPos + offset;
-            int len = br.ReadInt32();
-            //Console.WriteLine("Length: " + len);
-            string result = Encoding.ASCII.GetString(br.ReadBytes(len));
-            br.BaseStream.Position = start;
-            return result;
-        }
+        // private string ReadString(BinaryReader br, uint offset)
+        // {
+        //     long start = br.BaseStream.Position;
+        //     br.BaseStream.Position = _startPos + offset;
+        //     int len = br.ReadInt32();
+        //     //Console.WriteLine("Length: " + len);
+        //     string result = Encoding.ASCII.GetString(br.ReadBytes(len));
+        //     br.BaseStream.Position = start;
+        //     return result;
+        // }
 
-        private void ReadSmallObjects(uint numSmallObjects, BinaryReader br)
+        private void ReadSmallObjects(uint numSmallObjects, BinReader br)
         {
             // TODO: Implement ReadSmallObjects
         }
 
-        private void ReadLargeObjects(uint numLargeObjects, BinaryReader br)
+        private void ReadLargeObjects(uint numLargeObjects, BinReader br)
         {
             // TODO: Implement ReadLargeObjects
         }
