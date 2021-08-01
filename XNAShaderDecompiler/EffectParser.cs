@@ -109,7 +109,8 @@ namespace XNAShaderDecompiler
             //if (offset > length)
             //    throw new EndOfStreamException();
 
-            var @base = br.Slice(offset);
+            var @base = br.Slice(0);
+            br.Skip(offset);
             //length -= offset; // ???
 
             //if (length < 16)
