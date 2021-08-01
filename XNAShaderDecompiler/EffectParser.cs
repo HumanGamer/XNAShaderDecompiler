@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -255,6 +256,21 @@ namespace XNAShaderDecompiler
         private EffectValue ReadValue(BinaryReader br, uint typeOffset, uint valOffset)
         {
             EffectValue value = new EffectValue();
+
+            // long pos = br.BaseStream.Position;
+            //
+            // br.BaseStream.Position = _startPos + typeOffset;
+            // SymbolType type = (SymbolType) br.ReadUInt32();
+            // SymbolClass valClass = (SymbolClass) br.ReadUInt32();
+            // uint nameOffset = br.ReadUInt32();
+            // uint semanticOffset = br.ReadUInt32();
+            // uint numElements = br.ReadUInt32();
+            //
+            // value.Type.ParameterType = type;
+            // value.Type.ParameterClass = valClass;
+            // value.Name = ReadString(br, nameOffset);
+            // value.Semantic = ReadString(br, semanticOffset);
+            // value.Type.Elements = numElements;
             
             // TODO: Implement ReadValue
             
@@ -266,6 +282,7 @@ namespace XNAShaderDecompiler
             long start = br.BaseStream.Position;
             br.BaseStream.Position = _startPos + offset;
             int len = br.ReadInt32();
+            //Console.WriteLine("Length: " + len);
             string result = Encoding.ASCII.GetString(br.ReadBytes(len));
             br.BaseStream.Position = start;
             return result;

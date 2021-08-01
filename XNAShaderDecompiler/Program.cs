@@ -22,8 +22,8 @@ namespace XNAShaderDecompiler
             }
             string outputFile = Path.ChangeExtension(inputFile, ".fxb");
 
-            try
-            {
+            //try
+            //{
                 Console.WriteLine("Reading XNB...");
                 Effect effect = ContentManager.ReadAsset<Effect>(inputFile);
                 
@@ -35,12 +35,11 @@ namespace XNAShaderDecompiler
                 parser.Parse();
 
                 Console.WriteLine("Done!");
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                throw;
-            }
+            //}
+            //catch (Exception e)
+            //{
+            //    Console.WriteLine(e);
+            //}
         }
     }
 }
