@@ -15,15 +15,32 @@ namespace XNAShaderDecompiler
             }
 
             string inputFile = args[0];
+            if (!File.Exists(inputFile))
+            {
+                Console.WriteLine("File Not Found: " + inputFile);
+                return;
+            }
             string outputFile = Path.ChangeExtension(inputFile, ".fxb");
-            
-            Console.WriteLine("Reading XNB...");
-            Effect effect = ContentManager.ReadAsset<Effect>(inputFile);
-            
-            Console.WriteLine("Writing FXB...");
-            File.WriteAllBytes(outputFile, effect.EffectCode);
-            
-            Console.WriteLine("Done!");
+
+            try
+            {
+                Console.WriteLine("Reading XNB...");
+                Effect effect = ContentManager.ReadAsset<Effect>(inputFile);
+                
+                //Console.WriteLine("Writing FXB...");
+                //File.WriteAllBytes(outputFile, effect.EffectCode);
+                
+                Console.WriteLine("Parsing FXB...");
+                EffectParser parser = new EffectParser(effect);
+                parser.Parse();
+
+                Console.WriteLine("Done!");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
         }
     }
 }
