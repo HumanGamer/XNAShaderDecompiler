@@ -1,27 +1,27 @@
 ﻿namespace XNAShaderDecompiler
 {
-    public enum SymbolType
+    public enum SymbolType:uint
     {
-        MOJOSHADER_SYMTYPE_VOID = 0,
-        MOJOSHADER_SYMTYPE_BOOL,
-        MOJOSHADER_SYMTYPE_INT,
-        MOJOSHADER_SYMTYPE_FLOAT,
-        MOJOSHADER_SYMTYPE_STRING,
-        MOJOSHADER_SYMTYPE_TEXTURE,
-        MOJOSHADER_SYMTYPE_TEXTURE1D,
-        MOJOSHADER_SYMTYPE_TEXTURE2D,
-        MOJOSHADER_SYMTYPE_TEXTURE3D,
-        MOJOSHADER_SYMTYPE_TEXTURECUBE,
-        MOJOSHADER_SYMTYPE_SAMPLER,
-        MOJOSHADER_SYMTYPE_SAMPLER1D,
-        MOJOSHADER_SYMTYPE_SAMPLER2D,
-        MOJOSHADER_SYMTYPE_SAMPLER3D,
-        MOJOSHADER_SYMTYPE_SAMPLERCUBE,
-        MOJOSHADER_SYMTYPE_PIXELSHADER,
-        MOJOSHADER_SYMTYPE_VERTEXSHADER,
-        MOJOSHADER_SYMTYPE_PIXELFRAGMENT,
-        MOJOSHADER_SYMTYPE_VERTEXFRAGMENT,
-        MOJOSHADER_SYMTYPE_UNSUPPORTED,
-        MOJOSHADER_SYMTYPE_TOTAL /* housekeeping value; never returned. */
+        Void = 0,
+        Bool,
+        Int,
+        Float,
+        String,
+        Texture,
+        Texture1D,
+        Texture2D,
+        Texture3D,
+        TextureCube,
+        Sampler,
+        Sampler1D,
+        Sampler2D,
+        Sampler3D,
+        SamplerCube,
+        PixelShader,
+        VertexShader,
+        PixelFragment,
+        VertexFragment,
+        Unsupported,
+        Total /* housekeeping value; never returned. */
     }
 }

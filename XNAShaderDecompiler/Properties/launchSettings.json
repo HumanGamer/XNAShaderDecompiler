@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "XNAShaderDecompiler": {
+      "commandName": "Project",
+      "commandLineArgs": "PixelShader.xnb"
+    }
+  }
+}

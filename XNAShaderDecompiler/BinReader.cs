@@ -2,7 +2,7 @@
 
 namespace XNAShaderDecompiler
 {
-    public sealed class BinReader
+    public unsafe sealed class BinReader
     {
         private readonly byte[] data;
         private uint index;
@@ -13,7 +13,7 @@ namespace XNAShaderDecompiler
             this.index = index;
         }
 
-        public unsafe T Read<T>() where T:unmanaged
+        public T Read<T>() where T:unmanaged
         {
             fixed(byte* data0 = data)
             {
@@ -22,8 +22,16 @@ namespace XNAShaderDecompiler
                 return ret;
             }
         }
+
+        public T Read<T>(uint offset) where T:unmanaged
+		{
+            fixed(byte* data0 = data)
+            {
+                return *(T*)(data0+index+offset);
+            }
+		}
         
-        public unsafe void Skip<T>() where T:unmanaged
+        public void Skip<T>() where T:unmanaged
         {
             index += (uint)sizeof(T);
         }
