@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace XNAShaderDecompiler
@@ -22,8 +23,7 @@ namespace XNAShaderDecompiler
             public uint Rows;
             public uint Columns;
             public uint Elements;
-            public uint MemberCount;
-            public List<SymbolStructMember> Members;
+            public SymbolStructMember[] Members;
         }
         
         public struct EffectValue
@@ -67,19 +67,27 @@ namespace XNAShaderDecompiler
 
         public struct EffectObject
         {
-            
+            public SymbolType Type;
+
+            //public EffectShader Shader;
+            //public EffectSamplerMap Mapping;
+            //public EffectString String;
+            //public EffectTexture Texture;
         }
+
+        public struct EffectSamplerState
+		{
+            public SamplerStateType Type;
+            public EffectValue Value;
+		}
 
         public List<EffectParam> EffectParams;
         public List<EffectTechnique> EffectTechniques;
-        public List<EffectObject> EffectObjects;
-        
-        private long _startPos;
+        public EffectObject[] EffectObjects;
         
         public EffectParser(Effect effect)
         {
             _effect = effect;
-            _startPos = 0;
         }
 
         public void Parse()
@@ -121,7 +129,7 @@ namespace XNAShaderDecompiler
             uint unknown = br.Read<uint>();
             uint numObjects = br.Read<uint>();
 
-            EffectObjects = new List<EffectObject>();
+            EffectObjects = new EffectObject[numObjects];
 
             EffectParams = ReadParameters(numParams, br, @base);
             EffectTechniques = ReadTechniques(numTechniques, br, @base);
@@ -255,28 +263,201 @@ namespace XNAShaderDecompiler
             return states;
         }
 
-        private EffectValue ReadValue(BinReader br, uint typeOffset, uint valOffset)
+        private EffectValue ReadValue(BinReader @base, uint typeOffset, uint valOffset)
         {
             EffectValue value = new EffectValue();
 
-            // long pos = br.BaseStream.Position;
-            //
-            // br.BaseStream.Position = _startPos + typeOffset;
-            // SymbolType type = (SymbolType) br.ReadUInt32();
-            // SymbolClass valClass = (SymbolClass) br.ReadUInt32();
-            // uint nameOffset = br.ReadUInt32();
-            // uint semanticOffset = br.ReadUInt32();
-            // uint numElements = br.ReadUInt32();
-            //
-            // value.Type.ParameterType = type;
-            // value.Type.ParameterClass = valClass;
-            // value.Name = ReadString(br, nameOffset);
-            // value.Semantic = ReadString(br, semanticOffset);
-            // value.Type.Elements = numElements;
+			var typePtr = @base.Slice(typeOffset);
+            var valPtr = @base.Slice(valOffset);
+
+			SymbolType type = typePtr.Read<SymbolType>();
+			SymbolClass valClass = typePtr.Read<SymbolClass>();
+			uint nameOffset = typePtr.Read<uint>();
+			uint semanticOffset = typePtr.Read<uint>();
+			uint numElements = typePtr.Read<uint>();
+
+			value.Type.ParameterType = type;
+			value.Type.ParameterClass = valClass;
+			value.Name = @base.ReadString(nameOffset);
+			value.Semantic = @base.ReadString(semanticOffset);
+			value.Type.Elements = numElements;
+
+            /* Class sanity check */
+            if(valClass < SymbolClass.Scalar || valClass > SymbolClass.Struct)
+            {
+                throw new Exception();
+            }
             
-            // TODO: Implement ReadValue
-            
-            return value;
+            if (valClass == SymbolClass.Scalar
+             || valClass == SymbolClass.Vector
+             || valClass == SymbolClass.MatrixRows
+             || valClass == SymbolClass.MatrixColumns)
+			{
+                /* These classes only ever contain scalar values */
+                if(type < SymbolType.Bool || type > SymbolType.Float)
+				{
+                    throw new Exception();
+				}
+
+                var columnCount = typePtr.Read<uint>();
+                var rowCount = typePtr.Read<uint>();
+
+                value.Type.Columns = columnCount;
+                value.Type.Rows = rowCount;
+
+                uint size = 4 * rowCount;
+                if(numElements > 0)
+				{
+                    size *= numElements;
+				}
+                var values = new object[size];
+
+                for(uint i = 0; i<size; i+=4)
+                {
+                    for(uint c = 0; c<columnCount; c++)
+					{
+                        values[i+c] = valPtr.Read<float>(columnCount*i + c);
+					}
+                }
+                value.Values = values.ToList();
+			}
+            else if(valClass == SymbolClass.Object)
+			{
+                /* This class contains either samplers or "objects" */
+                if(type < SymbolType.String || type > SymbolType.VertexShader)
+				{
+                    throw new Exception();
+				}
+
+                if (type == SymbolType.Sampler
+                 || type == SymbolType.Sampler1D
+                 || type == SymbolType.Sampler2D
+                 || type == SymbolType.Sampler3D
+                 || type == SymbolType.SamplerCube)
+				{
+                    var numStates = valPtr.Read<uint>();
+
+                    var values = new object[numStates];
+
+                    for(int i=0; i<numStates; i++)
+					{
+                        var state = new EffectSamplerState();
+                        
+                        var stype = (SamplerStateType)(valPtr.Read<uint>() & ~0xA0);
+                        valPtr.Skip<uint>();//FIXME
+                        var stateTypeOffset = valPtr.Read<uint>();
+                        var stateValOffset = valPtr.Read<uint>();
+
+                        state.Type = stype;
+                        state.Value = ReadValue(@base, stateTypeOffset, stateValOffset);
+
+                        if(stype == SamplerStateType.Texture)
+						{
+                            EffectObjects[(int)state.Value.Values[0]].Type = type;
+						}
+
+                        values[i] = state;
+					}
+
+                    value.Values = values.ToList();
+				}
+                else
+				{
+                    uint numObjects = 1;
+                    if(numElements > 0)
+					{
+                        numObjects = numElements;
+					}
+
+                    var values = new object[numObjects];
+
+                    for(int i=0; i<values.Length; i++)
+					{
+                        var val = valPtr.Read<uint>();
+                        values[i] = val;
+
+                        EffectObjects[val].Type = type;
+					}
+
+                    value.Values = values.ToList();
+				}
+			}
+            else if(valClass == SymbolClass.Struct)
+			{
+                value.Type.Members = new SymbolStructMember[typePtr.Read<uint>()];
+
+                uint structSize = 0;
+
+                for(int i=0; i<value.Type.Members.Length; i++)
+				{
+                    ref var mem = ref value.Type.Members[i];
+
+                    mem.Info.ParameterType = typePtr.Read<SymbolType>();
+                    mem.Info.ParameterClass = typePtr.Read<SymbolClass>();
+
+                    var memNameOffset = typePtr.Read<uint>();
+                    var memSemantic = typePtr.Read<uint>();//Unused
+                    mem.Name = @base.ReadString(memNameOffset);
+
+                    mem.Info.Elements = typePtr.Read<uint>();
+                    mem.Info.Columns = typePtr.Read<uint>();
+                    mem.Info.Rows = typePtr.Read<uint>();
+
+                    if(mem.Info.ParameterClass < SymbolClass.Scalar || mem.Info.ParameterClass > SymbolClass.MatrixColumns)
+					{
+                        throw new Exception();
+					}
+                    if(mem.Info.ParameterType < SymbolType.Bool || mem.Info.ParameterType > SymbolType.Float)
+					{
+                        throw new Exception();
+					}
+
+                    mem.Info.Members = null;
+
+                    uint memSize = 4 * mem.Info.Rows;
+                    if(mem.Info.Elements > 0)
+					{
+                        memSize *= mem.Info.Elements;
+					}
+                    structSize += memSize;
+				}
+
+                value.Type.Columns = structSize;
+                value.Type.Rows = 1;
+                var valueCount = structSize;
+                if(numElements > 0)
+				{
+                    valueCount *= numElements;
+				}
+
+                var values = new object[valueCount];
+
+                uint dstOffset = 0;
+                uint srcOffset = 0;
+
+                int i2=0;
+                do
+				{
+                    for(int j=0; j<value.Type.Members.Length; j++)
+					{
+                        var size = value.Type.Members[j].Info.Rows * value.Type.Members[j].Info.Elements;
+                        for(int k=0; k<size; k++)
+						{
+                            for(int f=0; f<value.Type.Members[j].Info.Columns; f++)
+							{
+                                values[dstOffset + f] = typePtr.Read<float>(srcOffset*sizeof(float));/* Yes, typeptr. -flibit */
+							}
+                            dstOffset += 1;
+                            srcOffset += value.Type.Members[j].Info.Columns;
+						}
+					}
+				}
+                while(++i2 < numElements);
+
+                value.Values = values.ToList();
+			}
+
+			return value;
         }
 
         // private string ReadString(BinaryReader br, uint offset)

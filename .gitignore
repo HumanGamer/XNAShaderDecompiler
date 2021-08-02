@@ -5,3 +5,5 @@ riderModule.iml
 /_ReSharper.Caches/
 *.user
 .idea/
+*.xnb
+.vs/
