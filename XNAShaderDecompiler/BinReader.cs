@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 
 namespace XNAShaderDecompiler
 {
@@ -43,9 +44,15 @@ namespace XNAShaderDecompiler
 
         public byte[] ReadBytes(uint count)
         {
-            var bytes = new byte[count];
-            Array.Copy(data, index, bytes, 0, count);
+            var ret = ReadBytes(0, count);
             index += count;
+            return ret;
+        }
+
+        public byte[] ReadBytes(uint offset, uint count)
+        {
+            var bytes = new byte[count];
+            Array.Copy(data, index+offset, bytes, 0, count);
             return bytes;
         }
 
@@ -54,10 +61,16 @@ namespace XNAShaderDecompiler
             uint oldIndex = index;
             index += offset;
             var len = Read<uint>();
-            var ret = System.Text.Encoding.ASCII.GetString(data, (int)index, (int)len);
+            var ret = Encoding.ASCII.GetString(data, (int)index, (int)len);
             index = oldIndex;
             return ret;
         }
+
+        public string ReadString(uint offset, uint length)
+		{
+            if(length == 0){return string.Empty;}
+            return Encoding.ASCII.GetString(data, (int)(index+offset), (int)length);
+		}
 
         public BinReader Slice(uint offset) => new BinReader(data, index+offset);
     }
